@@ -169,7 +169,10 @@ def publish(model, details):
     profile = profiles[0] if profiles else None
 
     api_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
-    response = session.post(api_url, data={
+
+    logging.info("Отправляем фото: %s", image)
+
+    response = requests.post(api_url, data={
         "chat_id": CHANNEL_ID,
         "photo": image,
         "caption": make_caption(title, description, url, profile),
@@ -183,6 +186,7 @@ def publish(model, details):
     result = response.json()
 
     if not result.get("ok"):
+        raise RuntimeError(f"Telegram API error: {result}")
         raise RuntimeError(f"Telegram API error: {result}")
         
 def main():
