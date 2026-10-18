@@ -1,29 +1,43 @@
 import os
 import json
-import re
 import html
 import logging
+import random
+import re
 from pathlib import Path
-from urllib.parse import quote, urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHANNEL_ID = os.environ["CHANNEL_ID"]
-BASE_URL = "https://makerworld.com"
+FETCHLAYER_API_KEY = os.environ["FETCHLAYER_API_KEY"]
+
+API_BASE = "https://api.fetchlayer.dev/makerworld"
 STATE_FILE = Path("posted.json")
-MAX_POSTS_PER_RUN = 1
 
 SEARCH_TERMS = [
-    "home organization", "desk organizer", "cable holder",
-    "kitchen organizer", "storage box", "wall hook",
-    "drawer organizer", "bathroom organizer",
+    "home organization",
+    "desk organizer",
+    "cable holder",
+    "kitchen organizer",
+    "storage box",
+    "wall hook",
+    "drawer organizer",
+    "bathroom organizer",
 ]
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+)
+
 session = requests.Session()
-session.headers.update({"User-Agent": "Mozilla/5.0 (compatible; HomePrintBot/1.0; respectful crawler)"})
+session.headers.update({
+    "Authorization": f"Bearer {FETCHLAYER_API_KEY}",
+    "Content-Type": "application/json",
+    "User-Agent": "HomePrintBot/1.0",
+})
 
 
 def load_posted():
@@ -40,112 +54,151 @@ def save_posted(posted):
     )
 
 
-def get_soup(url):
-    response = session.get(url, timeout=25)
+def fetchlayer_post(endpoint, payload):
+    response = session.post(
+        f"{API_BASE}/{endpoint}",
+        json=payload,
+        timeout=60,
+    )
     response.raise_for_status()
-    return BeautifulSoup(response.text, "html.parser")
+    return response.json()
 
 
-def find_model_urls(term):
-    # This URL/HTML structure may change; test it before enabling scheduled posts.
-    search_url = f"{BASE_URL}/en/search/models?keyword={quote(term)}"
-    soup = get_soup(search_url)
-    urls = []
-    for a in soup.select("a[href]"):
-        absolute = urljoin(BASE_URL, a.get("href", ""))
-        parsed = urlparse(absolute)
-        if parsed.netloc not in {"makerworld.com", "www.makerworld.com"}:
-            continue
-        if re.search(r"/models/\d+", parsed.path):
-            clean = absolute.split("?")[0].split("#")[0]
-            if clean not in urls:
-                urls.append(clean)
-    return urls
+def search_models(term):
+    data = fetchlayer_post("search-models", {
+        "query": term,
+        "sortBy": "trending",
+        "printableOnly": True,
+        "limit": 20,
+    })
+    return data.get("models", [])
 
 
-def meta(soup, *names):
-    for name in names:
-        tag = soup.find("meta", attrs={"property": name}) or soup.find("meta", attrs={"name": name})
-        if tag and tag.get("content"):
-            return tag["content"].strip()
-    return ""
+def get_model_details(model_id):
+    data = fetchlayer_post("model-detail", {
+        "model": str(model_id),
+        "printProfileLimit": 20,
+    })
+    return data.get("model", {})
 
 
-def extract_model(url):
-    soup = get_soup(url)
-    title = meta(soup, "og:title", "twitter:title")
-    image = meta(soup, "og:image", "twitter:image")
-    description = meta(soup, "og:description", "description")
-    if not title or not image:
-        return None
-    title = re.sub(r"\s+", " ", html.unescape(title)).strip()
-    description = re.sub(r"\s+", " ", html.unescape(description)).strip()
-    if len(title) < 4 or not image.startswith(("https://", "http://")):
-        return None
-
-    # Do not guess print stats from arbitrary page text. Populate only if
-    # verified structured fields are added after checking MakerWorld's current markup.
-    return {
-        "title": title,
-        "image": image,
-        "description": description[:500],
-        "url": url,
-        "time": None,
-        "weight": None,
-    }
+def clean_description(raw):
+    if not raw:
+        return ""
+    text = BeautifulSoup(raw, "html.parser").get_text(" ", strip=True)
+    return re.sub(r"\s+", " ", html.unescape(text)).strip()
 
 
-def make_caption(model):
-    title = html.escape(model["title"])
-    description = html.escape(model["description"])
-    link = html.escape(model["url"], quote=True)
-    parts = [f"🏠 <b>{title}</b>", ""]
+def format_print_time(seconds):
+    if not seconds:
+        return "нет данных"
+
+    hours = int(seconds) // 3600
+    minutes = (int(seconds) % 3600) // 60
+
+    if hours and minutes:
+        return f"{hours} ч {minutes} мин"
+    if hours:
+        return f"{hours} ч"
+    return f"{minutes} мин"
+
+
+def make_caption(title, description, url, profile):
+    parts = [
+        f"🏠 <b>{html.escape(title)}</b>",
+        "",
+    ]
+
     if description:
-        parts += [description, ""]
-    parts.append("⏱ Время печати: нет подтверждённых данных")
-    parts.append("🧵 Расход пластика: нет подтверждённых данных")
-    parts += ["", f'🔗 <a href="{link}">Открыть модель на MakerWorld</a>', "",
-              "#3Dпечать #ПолезныеВещи #MakerWorld"]
+        parts += [html.escape(description[:450]), ""]
+
+    if profile:
+        print_time = format_print_time(profile.get("printTimeSeconds"))
+        grams = profile.get("filamentGrams")
+
+        parts.append(f"⏱ Время печати: {html.escape(print_time)}")
+        if grams is not None:
+            parts.append(f"🧵 Расход пластика: {html.escape(str(grams))} г")
+        else:
+            parts.append("🧵 Расход пластика: нет данных")
+    else:
+        parts.append("⏱ Время печати: нет данных")
+        parts.append("🧵 Расход пластика: нет данных")
+
+    safe_url = html.escape(url, quote=True)
+    parts += [
+        "",
+        f'🔗 <a href="{safe_url}">Открыть модель на MakerWorld</a>',
+        "",
+        "#3Dпечать #ПолезныеВещи #MakerWorld",
+    ]
+
     caption = "\n".join(parts)
-    return caption[:1000] if len(caption) <= 1024 else caption[:1000] + "…"
+    return caption[:1000]
 
 
-def publish(model):
+def publish(model, details):
+    title = model.get("title", "Модель MakerWorld")
+    url = model.get("modelUrl", "")
+    image = model.get("coverUrl", "")
+
+    if not title or not url or not image:
+        raise ValueError("В результате поиска не хватает названия, ссылки или обложки")
+
+    description = clean_description(details.get("description", ""))
+
+    profiles = details.get("printProfiles") or []
+    profile = profiles[0] if profiles else None
+
     api_url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendPhoto"
     response = session.post(api_url, data={
         "chat_id": CHANNEL_ID,
-        "photo": model["image"],
-        "caption": make_caption(model),
+        "photo": image,
+        "caption": make_caption(title, description, url, profile),
         "parse_mode": "HTML",
     }, timeout=40)
+
     response.raise_for_status()
     result = response.json()
+
     if not result.get("ok"):
         raise RuntimeError(f"Telegram API error: {result}")
 
 
 def main():
     posted = load_posted()
-    for term in SEARCH_TERMS:
-        try:
-            urls = find_model_urls(term)
-        except Exception as exc:
-            logging.warning("Search failed for %r: %s", term, exc)
+
+    # За запуск делаем только один поисковый запрос, чтобы экономить API-кредиты.
+    term = random.choice(SEARCH_TERMS)
+    logging.info("Searching FetchLayer for: %s", term)
+
+    try:
+        models = search_models(term)
+    except Exception:
+        logging.exception("FetchLayer search failed")
+        return
+
+    for model in models:
+        url = model.get("modelUrl")
+        model_id = model.get("modelId")
+
+        if not url or not model_id or url in posted:
             continue
-        for url in urls:
-            if url in posted:
-                continue
-            try:
-                model = extract_model(url)
-                if not model:
-                    continue
-                publish(model)
-                posted.add(url)
-                save_posted(posted)
-                logging.info("Published: %s", model["title"])
-                return
-            except Exception as exc:
-                logging.warning("Could not publish %s: %s", url, exc)
+
+        try:
+            details = get_model_details(model_id)
+            publish(model, details)
+
+            posted.add(url)
+            save_posted(posted)
+
+            logging.info("Published: %s", model.get("title"))
+            return
+
+        except Exception:
+            logging.exception("Could not publish model: %s", url)
+            return
+
     logging.info("No new model found. No post sent.")
 
 
