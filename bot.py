@@ -144,6 +144,13 @@ def publish(model, details):
     url = model.get("modelUrl", "")
     image = model.get("coverUrl", "")
 
+    def plain_url(value):
+        match = re.search(r"https?://[^\s\]\)]+", value or "")
+        return match.group(0) if match else ""
+
+    url = plain_url(url)
+    image = plain_url(image)
+
     if isinstance(url, str) and "](" in url:
         url = url.split("](", 1)[1].rstrip(")")
 
