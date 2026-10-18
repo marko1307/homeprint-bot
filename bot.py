@@ -198,4 +198,4 @@ def main():
 
     logging.info("No new model found. No post sent.")       
 if __name__ == "__main__":
-    main()
+        main()
