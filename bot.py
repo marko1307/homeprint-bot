@@ -96,16 +96,28 @@ def clean_description(raw):
     if not text:
         return ""
 
+    import time
+
     for attempt in range(3):
         try:
-            text = GoogleTranslator(
+            translated = GoogleTranslator(
                 source="auto",
                 target="ru"
-            ).translate(text[:450]) or text
-            return text
+            ).translate(text[:450])
+
+            return translated or text
 
         except Exception as e:
             logging.warning(
+                "Ошибка перевода, попытка %s из 3: %s",
+                attempt + 1,
+                e
+            )
+
+            if attempt < 2:
+                time.sleep(3 * (attempt + 1))
+
+    return text
 
 
 
