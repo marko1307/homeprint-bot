@@ -8,6 +8,7 @@ from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
+from deep_translator import GoogleTranslator
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 CHANNEL_ID = os.environ["CHANNEL_ID"]
@@ -84,11 +85,24 @@ def get_model_details(model_id):
     return data.get("model", {})
 
 
+
 def clean_description(raw):
     if not raw:
         return ""
+
     text = BeautifulSoup(raw, "html.parser").get_text(" ", strip=True)
-    return re.sub(r"\s+", " ", html.unescape(text)).strip()
+    text = re.sub(r"\s+", " ", html.unescape(text)).strip()
+
+    if not text:
+        return ""
+
+    try:
+        text = GoogleTranslator(source="auto", target="ru").translate(text[:450]) or text
+    except Exception:
+        logging.exception("Не удалось перевести описание")
+
+    return text
+
 
 
 def format_print_time(seconds):
