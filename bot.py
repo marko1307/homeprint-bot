@@ -167,5 +167,5 @@ def publish(model, details):
     if not result.get("ok"):
         raise RuntimeError(f"Telegram API error: {result}")
         
-    if __name__ == "__main__":
+    if not __name__ == "__main__":
     main()
