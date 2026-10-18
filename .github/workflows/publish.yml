@@ -28,6 +28,7 @@ jobs:
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+          FETCHLAYER_API_KEY: ${{ secrets.FETCHLAYER_API_KEY }}
         run: python bot.py
 
       - name: Save posted models
