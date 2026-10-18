@@ -96,12 +96,16 @@ def clean_description(raw):
     if not text:
         return ""
 
-    try:
-        text = GoogleTranslator(source="auto", target="ru").translate(text[:450]) or text
-    except Exception:
-        logging.exception("Не удалось перевести описание")
+    for attempt in range(3):
+        try:
+            text = GoogleTranslator(
+                source="auto",
+                target="ru"
+            ).translate(text[:450]) or text
+            return text
 
-    return text
+        except Exception as e:
+            logging.warning(
 
 
 
