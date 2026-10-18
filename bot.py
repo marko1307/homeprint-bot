@@ -149,7 +149,10 @@ def publish(model, details):
 
     if isinstance(image, str) and "](" in image:
         image = image.split("](", 1)[1].rstrip(")")
-
+        
+    logging.info("Ссылка модели: %s", url)
+    logging.info("Ссылка изображения: %s", image)
+    
     if not title or not url or not image:
         raise ValueError("В результате поиска не хватает названия, ссылки или обложки")
 
