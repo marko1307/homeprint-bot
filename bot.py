@@ -161,49 +161,11 @@ def publish(model, details):
         "parse_mode": "HTML",
     }, timeout=40)
 
+    if not response.ok:
+        logging.error("Telegram sendPhoto error: %s", response.text)
+
     response.raise_for_status()
     result = response.json()
 
     if not result.get("ok"):
         raise RuntimeError(f"Telegram API error: {result}")
-
-
-def main():
-    posted = load_posted()
-
-    # За запуск делаем только один поисковый запрос, чтобы экономить API-кредиты.
-    term = random.choice(SEARCH_TERMS)
-    logging.info("Searching FetchLayer for: %s", term)
-
-    try:
-        models = search_models(term)
-    except Exception:
-        logging.exception("FetchLayer search failed")
-        return
-
-    for model in models:
-        url = model.get("modelUrl")
-        model_id = model.get("modelId")
-
-        if not url or not model_id or url in posted:
-            continue
-
-        try:
-            details = get_model_details(model_id)
-            publish(model, details)
-
-            posted.add(url)
-            save_posted(posted)
-
-            logging.info("Published: %s", model.get("title"))
-            return
-
-        except Exception:
-            logging.exception("Could not publish model: %s", url)
-            return
-
-    logging.info("No new model found. No post sent.")
-
-
-if __name__ == "__main__":
-    main()
