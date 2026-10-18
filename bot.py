@@ -167,5 +167,35 @@ def publish(model, details):
     if not result.get("ok"):
         raise RuntimeError(f"Telegram API error: {result}")
         
+def main():
+    posted = load_posted()
+    term = random.choice(SEARCH_TERMS)
+    logging.info("Searching FetchLayer for: %s", term)
+
+    try:
+        models = search_models(term)
+    except Exception:
+        logging.exception("FetchLayer search failed")
+        return
+
+    for model in models:
+        url = model.get("modelUrl")
+        model_id = model.get("modelId")
+
+        if not url or not model_id or url in posted:
+            continue
+
+        try:
+            details = get_model_details(model_id)
+            publish(model, details)
+            posted.add(url)
+            save_posted(posted)
+            logging.info("Published: %s", model.get("title"))
+            return
+        except Exception:
+            logging.exception("Could not publish model: %s", url)
+            return
+
+    logging.info("No new model found. No post sent.")       
 if __name__ == "__main__":
     main()
