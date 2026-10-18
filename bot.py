@@ -60,8 +60,11 @@ def fetchlayer_post(endpoint, payload):
         json=payload,
         timeout=60,
     )
+if not response.ok:
+        logging.error("Telegram sendPhoto error: %s", response.text)
+
     response.raise_for_status()
-    return response.json()
+    result = response.json()
 
 
 def search_models(term):
