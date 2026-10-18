@@ -254,12 +254,32 @@ def publish(model, details):
 
     logging.info("Отправляем фото: %s", image)
 
-    response = requests.post(api_url, data={
-        "chat_id": CHANNEL_ID,
-        "photo": image,
-        "caption": make_caption(title, description, url, profile),
-        "parse_mode": "HTML",
-    }, timeout=40)
+    image_response = requests.get(
+        image,
+        headers={"User-Agent": "Mozilla/5.0"},
+        timeout=30,
+    )
+    image_response.raise_for_status()
+
+    response = requests.post(
+        api_url,
+        data={
+            "chat_id": CHANNEL_ID,
+            "caption": make_caption(title, description, url, profile),
+            "parse_mode": "HTML",
+        },
+        files={
+            "photo": (
+                "model.jpg",
+                image_response.content,
+                image_response.headers.get(
+                    "Content-Type", "image/jpeg"
+                ),
+            )
+        },
+        timeout=60,
+    )
+
 
     if not response.ok:
         logging.error("Telegram sendPhoto error: %s", response.text)
