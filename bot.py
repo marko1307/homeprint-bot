@@ -246,29 +246,6 @@ def publish(model, details):
             "Название: " + " ".join(translated_words) + ". "
             "Для чего подходит: " + ", ".join(translated_tags[:6]) + "."
         )
-        
-if not description:
-    title_words = re.findall(
-        r"[A-Za-z0-9-]+",
-        model.get("title", "")
-    )
-    tags = model.get("tags", [])
-
-    translated_words = [
-        RU_WORDS.get(word.lower(), word)
-        for word in title_words
-    ]
-
-    translated_tags = [
-        RU_WORDS.get(tag.lower(), tag)
-        for tag in tags
-    ]
-
-    description = (
-        "Полезная модель для дома. "
-        "Название: " + " ".join(translated_words) + ". "
-        "Для чего подходит: " + ", ".join(translated_tags[:6]) + "."
-    )
 
     profiles = details.get("printProfiles") or []
     profile = profiles[0] if profiles else None
