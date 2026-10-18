@@ -71,7 +71,9 @@ def search_models(term):
         "printableOnly": True,
         "limit": 20,
     })
-    return data.get("models", [])
+        models = data.get("models", [])
+    logging.info("Пример модели из поиска: %s", models[0] if models else "Моделей нет")
+    return models
 
 
 def get_model_details(model_id):
