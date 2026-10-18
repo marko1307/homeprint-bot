@@ -117,8 +117,7 @@ def get_model_details(model_id):
 
 
 def clean_description(raw):
-    if not raw:
-        return ""
+    return ""
 
     text = BeautifulSoup(raw, "html.parser").get_text(" ", strip=True)
     text = re.sub(r"\s+", " ", html.unescape(text)).strip()
