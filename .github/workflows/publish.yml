@@ -27,7 +27,7 @@ jobs:
       - name: Run bot
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          TELEGRAM_CHANNEL: ${{ secrets.TELEGRAM_CHANNEL }}
+          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
         run: python bot.py
 
       - name: Save posted models
