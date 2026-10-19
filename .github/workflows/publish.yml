@@ -2,10 +2,9 @@
 name: Publish MakerWorld models
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: "7 8,11,14,17,20 * * *"
-
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
 permissions:
   contents: write
 
