@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 
 import requests
+import time
 from bs4 import BeautifulSoup
 from deep_translator import GoogleTranslator
 
