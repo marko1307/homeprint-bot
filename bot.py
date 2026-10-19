@@ -86,7 +86,7 @@ def save_posted(posted):
 
 
 def fetchlayer_post(endpoint, payload):
-    url = f"{BASE_URL}/{endpoint}"
+    url = f"{API_BASE}/{endpoint}"
 
     headers = {
         "Authorization": f"Bearer {FETCHLAYER_API_KEY}",
