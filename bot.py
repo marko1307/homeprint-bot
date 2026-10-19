@@ -86,13 +86,42 @@ def save_posted(posted):
 
 
 def fetchlayer_post(endpoint, payload):
-    response = session.post(
-        f"{API_BASE}/{endpoint}",
-        json=payload,
-        timeout=60,
-    )
-    response.raise_for_status()
-    return response.json()
+    url = f"{BASE_URL}/{endpoint}"
+
+    headers = {
+        "Authorization": f"Bearer {FETCHLAYER_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    for attempt in range(3):
+        response = requests.post(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=30,
+        )
+
+        if response.status_code == 429:
+            # Сервис может сообщить, сколько секунд подождать
+            retry_after = response.headers.get("Retry-After")
+
+            try:
+                wait_seconds = int(retry_after) if retry_after else 30
+            except ValueError:
+                wait_seconds = 30
+
+            if attempt < 2:
+                logging.warning(
+                    "FetchLayer ограничил запросы. Ждём %s секунд.",
+                    wait_seconds,
+                )
+                time.sleep(wait_seconds)
+                continue
+
+        response.raise_for_status()
+        return response.json()
+
+    raise RuntimeError("FetchLayer всё ещё возвращает 429")
 
 
 def search_models(term):
